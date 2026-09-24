@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Lost & Found — Campus Hub{% endblock %}
+
+{% block content %}
+<div class="module-header">
+    <div class="module-title">
+        <h2>🔍 Lost & Found</h2>
+        <p>Help keep our campus community connected</p>
+    </div>
+    <div class="module-actions">
+        <a href="{{ url_for('lost_found') }}"              class="btn-outline {% if not filter_type or filter_type == 'all' %}active{% endif %}">All</a>
+        <a href="{{ url_for('lost_found', type='lost') }}" class="btn-outline {% if filter_type == 'lost'  %}active{% endif %}">Lost</a>
+        <a href="{{ url_for('lost_found', type='found') }}" class="btn-outline {% if filter_type == 'found' %}active{% endif %}">Found</a>
+    </div>
+</div>
+
+<div class="split-layout">
+    <!-- Left: Report Form + Leaderboard -->
+    <div class="sidebar">
+        <div class="form-card sticky">
+            <h3>Report an Item</h3>
+            <form method="POST" action="{{ url_for('report_item') }}" class="app-form" style="margin-top:1rem;">
+                <div class="form-group">
+                    <label>I have…</label>
+                    <select name="item_type" required>
+                        <option value="lost">😟 Lost an item</option>
+                        <option value="found">🎉 Found an item</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Item Name / Title</label>
+                    <input type="text" name="title" required placeholder="E.g., Blue Water Bottle">
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select name="category" required>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Description (color, location, details)</label>
+                    <textarea name="description" rows="3" required placeholder="Describe the item…"></textarea>
+                </div>
+                <button type="submit" class="btn-primary w-100">Submit Report 📌</button>
+            </form>
+
+            <!-- Leaderboard -->
+            {% if leaderboard %}
+            <div class="leaderboard-card" style="margin-top:1.5rem;">
+                <div class="section-title" style="font-size:0.92rem;">🏆 Top Helpers</div>
+                <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.8rem;">Students who helped return the most items</p>
+                {% for row in leaderboard %}
+                <div class="leaderboard-entry">
+                    <div class="lb-rank {% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% elif loop.index == 3 %}bronze{% endif %}">
+                        {{ loop.index }}
+                    </div>
+                    <div class="lb-name">{{ row.name }}</div>
+                    <div class="lb-count">{{ row.count }} returned</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right: Search + Items Grid -->
+    <div class="main-content">
+        <!-- Search & Filter -->
+        <form method="GET" action="{{ url_for('lost_found') }}" id="searchForm">
+            <input type="hidden" name="type" value="{{ filter_type or '' }}">
+            <div class="search-filter-bar">
+                <div class="search-input-wrap">
+                    <span class="search-icon">🔎</span>
+                    <input type="text" name="q" id="searchInput" value="{{ query_str }}" placeholder="Search items…">
+                </div>
+                <select name="category" class="filter-select" onchange="this.form.submit()">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if category_filter == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn-primary btn-sm" style="padding:0.65rem 1rem;">Search</button>
+                {% if query_str or category_filter %}
+                <a href="{{ url_for('lost_found', type=filter_type) }}" class="btn-outline btn-sm" style="padding:0.65rem 0.8rem;">✕ Clear</a>
+                {% endif %}
+            </div>
+        </form>
+
+        {% if query_str or category_filter %}
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">
+            {{ items|length }} result{{ 's' if items|length != 1 else '' }} found
+            {% if query_str %}for "<strong style="color:var(--text)">{{ query_str }}</strong>"{% endif %}
+            {% if category_filter %}in <strong style="color:var(--text)">{{ category_filter }}</strong>{% endif %}
+        </p>
+        {% endif %}
+
+        <div class="items-grid">
+            {% for item in items %}
+            <div class="item-card {% if item.status == 'Claimed' %}resolved{% endif %}">
+                <div class="item-badge badge-{{ item.item_type }}">{{ item.item_type|capitalize }}</div>
+                <h3>{{ item.title }}</h3>
+                <div class="category-tag">
+                    {% set cat_icons = {'Electronics':'💻','Documents/ID':'📄','Keys':'🔑','Clothing':'👕','Stationery':'✏️','Other':'📦'} %}
+                    {{ cat_icons.get(item.category, '📦') }} {{ item.category }}
+                </div>
+                <p class="desc">{{ item.description }}</p>
+                <div class="item-meta">
+                    <small>{{ item.date_reported | time_ago }}</small>
+                    <small>by {{ item.reporter.name }}</small>
+                </div>
+                {% if item.status == 'Active' %}
+                <form method="POST" action="{{ url_for('claim_item', item_id=item.id) }}" style="margin-top:1rem;">
+                    <button type="submit" class="btn-outline btn-sm w-100">✅ Mark as Resolved / Claimed</button>
+                </form>
+                {% else %}
+                <div class="status-claimed" style="margin-top:1rem;">✓ Resolved / Claimed</div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">🔍</div>
+                <h3>Nothing here yet</h3>
+                <p>
+                    {% if query_str %}No items match your search. Try different keywords.
+                    {% else %}No items have been reported yet. Use the form to submit one!
+                    {% endif %}
+                </p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Debounced live search (auto-submit after 600ms of no typing)
+    let searchTimer;
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                document.getElementById('searchForm').submit();
+            }, 700);
+        });
+    }
+</script>
+{% endblock %}

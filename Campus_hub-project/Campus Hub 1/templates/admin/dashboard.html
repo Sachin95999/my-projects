@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — Campus Hub{% endblock %}
+
+{% block content %}
+<div class="module-header">
+    <div class="module-title">
+        <h2>🛠️ Administrator Control Center</h2>
+        <p>System-wide oversight and complaint tracking.</p>
+    </div>
+    <div class="module-actions">
+        <a href="{{ url_for('admin_notices') }}" class="btn-outline">📢 Manage Notices</a>
+        <a href="{{ url_for('admin_mess_menu') }}" class="btn-outline">🍽️ Update Mess Menu</a>
+    </div>
+</div>
+
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-number">{{ stats.total_users }}</div>
+        <div class="stat-label">Total Students</div>
+    </div>
+    <div class="stat-card stat-active">
+        <div class="stat-icon">🛠️</div>
+        <div class="stat-number">{{ stats.open_complaints }}</div>
+        <div class="stat-label">Open Complaints</div>
+    </div>
+    <div class="stat-card stat-reported">
+        <div class="stat-icon">📢</div>
+        <div class="stat-number">{{ stats.total_notices }}</div>
+        <div class="stat-label">Total Notices</div>
+    </div>
+    <div class="stat-card stat-claimed">
+        <div class="stat-icon">🔍</div>
+        <div class="stat-number">{{ stats.active_items }}</div>
+        <div class="stat-label">Active Lost Items</div>
+    </div>
+</div>
+
+<div class="section-title">⚖️ Recent Hostel Complaints</div>
+<div class="complaints-list">
+    {% for c in recent_complaints %}
+    <div class="complaint-card priority-{{ c.priority|lower }}">
+        <div class="complaint-header">
+            <div>
+                <h4>{{ c.category }}</h4>
+                <p style="font-size:0.8rem; color:var(--text-muted);">From: <strong>{{ c.student.name }}</strong> ({{ c.student.roll_no }})</p>
+            </div>
+            <div class="badges">
+                <span class="badge badge-priority-{{ c.priority|lower }}">{{ c.priority }} Priority</span>
+                <span class="badge badge-{{ c.status.lower().replace(' ', '-') }}">
+                    {% if c.status == 'In Progress' %}<span class="pulse-dot"></span>{% endif %}
+                    {{ c.status }}
+                </span>
+            </div>
+        </div>
+        <p class="desc">{{ c.description }}</p>
+        
+        <form method="POST" action="{{ url_for('admin_update_complaint', complaint_id=c.id) }}" class="app-form" style="display:flex; gap:0.5rem; align-items:center; background:rgba(0,0,0,0.2); padding:0.8rem; border-radius:10px;">
+            <select name="status" style="width: auto; padding: 0.4rem;">
+                <option value="Pending" {% if c.status == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="In Progress" {% if c.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Resolved" {% if c.status == 'Resolved' %}selected{% endif %}>Resolved</option>
+            </select>
+            <input type="text" name="worker" placeholder="Assign Worker Name" value="{{ c.assigned_worker or '' }}" style="width: auto; padding: 0.4rem;">
+            <button type="submit" class="btn-primary btn-sm">Update</button>
+        </form>
+
+        <div class="complaint-meta">
+            <span>Posted {{ c.date_lodged|time_ago }}</span>
+            <span>Room: {{ c.student.room_no or 'N/A' }}</span>
+        </div>
+    </div>
+    {% else %}
+    <div class="item-card text-center" style="padding:4rem;">
+        <p style="color:var(--text-muted);">No complaints recorded yet.</p>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

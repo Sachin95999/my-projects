@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Campus Hub{% endblock %}</title>
+    <meta name="description" content="Campus Hub — your all-in-one student portal for hostel complaints, lost & found, notices, and mess menu.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#080e1e">
+</head>
+<body>
+    <nav class="navbar" id="mainNav">
+        <div class="nav-brand">
+            <a href="{{ url_for('index') }}">🎓 Campus Hub</a>
+        </div>
+
+        {% if current_user %}
+        <div class="nav-links" id="navLinks">
+            <a href="{{ url_for('dashboard') }}"  class="nav-link {% if current_endpoint == 'dashboard'  %}active{% endif %}">Dashboard</a>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if 'admin' in current_endpoint %}active{% endif %}" style="color:var(--accent);">Admin Panel 🔑</a>
+            {% endif %}
+            <a href="{{ url_for('lost_found') }}"  class="nav-link {% if current_endpoint == 'lost_found' %}active{% endif %}">Lost & Found</a>
+            <a href="{{ url_for('complaints') }}"  class="nav-link {% if current_endpoint == 'complaints' %}active{% endif %}">Complaints</a>
+            <a href="{{ url_for('notices') }}"     class="nav-link {% if current_endpoint == 'notices'    %}active{% endif %}">Notices</a>
+            <a href="{{ url_for('mess_menu') }}"   class="nav-link {% if current_endpoint == 'mess_menu'  %}active{% endif %}">Mess Menu</a>
+            <a href="{{ url_for('profile') }}"     class="nav-link {% if current_endpoint == 'profile'    %}active{% endif %}">Profile</a>
+
+            <a href="{{ url_for('notifications') }}" class="notif-bell" title="Notifications">
+                🔔
+                {% if unread_notif_count > 0 %}
+                <span class="notif-badge">{{ unread_notif_count if unread_notif_count < 10 else '9+' }}</span>
+                {% endif %}
+            </a>
+
+            <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
+            <a href="{{ url_for('logout') }}" class="nav-btn">Logout</a>
+        </div>
+        <button class="hamburger" id="hamburger" aria-label="Menu">
+            <span></span><span></span><span></span>
+        </button>
+        {% else %}
+        <div class="nav-links">
+            <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
+            <a href="{{ url_for('login') }}"  class="nav-link {% if current_endpoint == 'login'  %}active{% endif %}">Login</a>
+            <a href="{{ url_for('signup') }}" class="nav-btn">Sign Up</a>
+        </div>
+        {% endif %}
+    </nav>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            <script>window.campusHubFlashes = {{ messages|tojson }};</script>
+            {% if messages %}
+                <div class="flash-messages" id="flashMessages">
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}" id="flash-{{ loop.index }}">
+                        <span>{% if category == 'success' %}✅{% elif category == 'error' %}❌{% elif category == 'warning' %}⚠️{% else %}ℹ️{% endif %}</span>
+                        {{ message }}
+                        <span class="alert-close" onclick="this.parentElement.remove()">✕</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+        // ── Theme Toggle ──────────────────────────────────────────────────────
+        const html = document.documentElement;
+        const toggleBtn = document.getElementById('themeToggle');
+
+        function applyTheme(theme) {
+            html.setAttribute('data-theme', theme);
+            if (toggleBtn) toggleBtn.textContent = theme === 'dark' ? '🌙' : '☀️';
+        }
+        const savedTheme = localStorage.getItem('ch-theme') ||
+            (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        applyTheme(savedTheme);
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                applyTheme(newTheme);
+                localStorage.setItem('ch-theme', newTheme);
+            });
+        }
+
+        // ── Hamburger ─────────────────────────────────────────────────────────
+        const hamburger = document.getElementById('hamburger');
+        const navLinks  = document.getElementById('navLinks');
+        if (hamburger && navLinks) {
+            hamburger.addEventListener('click', () => {
+                navLinks.classList.toggle('mobile-open');
+                navLinks.classList.toggle('mobile-hidden');
+            });
+        }
+
+        // ── Sticky Nav Shadow ─────────────────────────────────────────────────
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('mainNav');
+            if (nav) nav.classList.toggle('scrolled', window.scrollY > 20);
+        });
+
+        // ── Flash Auto-dismiss ────────────────────────────────────────────────
+        document.querySelectorAll('.alert').forEach((el, i) => {
+            setTimeout(() => {
+                el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                el.style.opacity  = '0';
+                el.style.transform = 'translateY(-8px)';
+                setTimeout(() => el.remove(), 500);
+            }, 4000 + i * 300);
+        });
+
+        // ── Form Loading State ────────────────────────────────────────────────
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', () => {
+                const btn = form.querySelector('button[type="submit"]');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<span style="opacity:0.7">Processing…</span>';
+                }
+            });
+        });
+
+        // ── PWA Service Worker ────────────────────────────────────────────────
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
